@@ -1,0 +1,31 @@
+TOOLCHAIN=/usr/lib/llvm-10
+CLANG=/usr/bin/clang++-10
+
+#-Wextra
+CPPFLAGS=-O3 -fPIC \
+	-DXENOMAI_SKIN_posix \
+	-march=armv7-a \
+	-mtune=cortex-a8 \
+	-mfloat-abi=hard \
+	-mfpu=neon -ftree-vectorize \
+	-ffast-math \
+	-I$(SYSROOT)/root/Bela \
+	-I$(SYSROOT)/root/Bela/include \
+	-I$(SYSROOT)/usr/xenomai/include
+
+OPTS=--target=arm-linux-gnueabihf \
+	--sysroot=$(SYSROOT) \
+	-isysroot $(SYSROOT) \
+	-isystem $(SYSROOT)/usr/include/c++/6.3.0 \
+	-isystem $(SYSROOT)/usr/include/arm-linux-gnueabihf/c++/6.3.0 \
+	-B$(SYSROOT)/usr/lib/gcc/arm-linux-gnueabihf/6.3.0 \
+	--gcc-toolchain=TOOLCHAIN/arm-linux-gnueabihf-binutils \
+
+LOPTS=-L$(SYSROOT)/usr/lib/gcc/arm-linux-gnueabihf/6.3.0
+
+LDFLAGS=-Wl,--no-as-needed -L${SYSROOT}/usr/local/lib \
+    -L${SYSROOT}/usr/xenomai/lib \
+    -L${SYSROOT}/root/Bela/lib \
+    -lcobalt -lmodechk -lpthread -lrt\
+    -lprussdrv -lstdc++ -lasound -lseasocks -lNE10 -lmathneon -ldl \
+    -latomic -lsndfile -l:libbelafull.a

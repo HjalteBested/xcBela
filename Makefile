@@ -1,70 +1,52 @@
-# When clock skew appears uncomment this line
-# $(shell find . -exec touch {} \;)
+include MakefileTop.in
 
-TARGET_EXEC := ./build/SpringBoard
+TARGET_EXEC := ./build/$(PROJECT)
+SYSROOT := ./sysroot
+BUILD_DIR := ./build
+PROJECT_SRC := ./Bela/projects/$(PROJECT)
+BATK_SRC := ./sysroot/root/Bela/libraries/Batk
 
+PROJECT_SRCS := $(shell	find $(PROJECT_SRC)	-name	*.cpp	-or	-name	*.c	-or	-name	*.s) ./Bela/Core/default_main.cpp
+PROJECT_OBJS := $(PROJECT_SRCS:%.cpp=$(BUILD_DIR)/%.o)
+PROJECT_DEPS := $(PROJECT_OBJS:.o=.d)
 
-XC_SYSROOT := ./sysroot
-BUILD_DIR  := ./build
-SRC_DIRS   := ./Bela/projects/SpringBoard ./Bela/libraries/Batk
+BATK_SRCS := $(shell find $(BATK_SRC)	-name	*.cpp	-or	-name	*.c	-or	-name	*.s)
+BATK_OBJS := $(BATK_SRCS:%.cpp=$(BUILD_DIR)/%.o)
+BATK_DEPS := $(BATK_OBJS:.o=.d)
 
+OBJS := $(PROJECT_OBJS) $(BATK_OBJS)
+DEPS := $(PROJECT_DEPS) $(BATK_DEPS)
 
-TOOLCHAIN=/usr/lib/llvm-10
-CLANG=/usr/bin/clang++-10
-
-#-Wextra
-CFLAGS=-O3 -fPIC -DXENOMAI_SKIN_posix -march=armv7-a -mtune=cortex-a8 -mfloat-abi=hard -mfpu=neon -ftree-vectorize -ffast-math -I$(XC_SYSROOT)/root/Bela -I$(XC_SYSROOT)/root/Bela/include -I$(XC_SYSROOT)/usr/xenomai/include
-
-OPTS=--target=arm-linux-gnueabihf \
-	--sysroot=$(XC_SYSROOT) \
-	-isysroot $(XC_SYSROOT) \
-	-isystem $(XC_SYSROOT)/usr/include/c++/6.3.0 \
-	-isystem $(XC_SYSROOT)/usr/include/arm-linux-gnueabihf/c++/6.3.0 \
-	-B$(XC_SYSROOT)/usr/lib/gcc/arm-linux-gnueabihf/6.3.0 \
-	--gcc-toolchain=TOOLCHAIN/arm-linux-gnueabihf-binutils \
-
-LOPTS=-L$(XC_SYSROOT)/usr/lib/gcc/arm-linux-gnueabihf/6.3.0
-
-LDFLAGS=-Wl,--no-as-needed -L${XC_SYSROOT}/usr/local/lib \
-    -L${XC_SYSROOT}/usr/xenomai/lib \
-    -L${XC_SYSROOT}/root/Bela/lib \
-    -lcobalt -lmodechk -lpthread -lrt\
-    -lprussdrv -lstdc++ -lasound -lseasocks -lNE10 -lmathneon -ldl \
-    -latomic \
-    -lsndfile \
-    -l:libbelafull.a\
-
-SRCS := $(shell	find $(SRC_DIRS)	-name	*.cpp	-or	-name	*.c	-or	-name	*.s)
-OBJS := $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
-DEPS := $(OBJS:.o=.d)
-
-
-CORE_OBJS := $(addprefix build/core/,)
-ALL_DEPS += $(addprefix build/core/,$(notdir $(CORE_C_SRCS:.c=.d)))
-
-
-
+# application
 $(TARGET_EXEC): $(OBJS)
-	$(CLANG) $(OPTS) $(LOPTS) $(OBJS) -o $@ $(LDFLAGS)
+	@$(CLANG) $(OPTS) $(LOPTS) $(OBJS) -o $@ $(LDFLAGS)
+	@echo Building: $(notdir $@)
 
 # assembly
 $(BUILD_DIR)/%.s.o: %.s
-	$(MKDIR_P) $(dir $@)
-	$(CLANG) $(OPTS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ 
+	@$(MKDIR_P) $(dir $@)
+	@$(CLANG) $(OPTS) $(CPPFLAGS) -Wall -c -fmessage-length=0 -U_FORTIFY_SOURCE -MMD -MP -MF"$(@:%.o=%.d)" $< -o $@
+	@echo Building: $(notdir $@)
 
 # c source
 $(BUILD_DIR)/%.c.o: %.c
-	$(MKDIR_P) $(dir $@)
-	$(CLANG) $(OPTS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(MKDIR_P) $(dir $@)
+	@$(CLANG) $(OPTS) $(CPPFLAGS) -Wall -c -fmessage-length=0 -U_FORTIFY_SOURCE -MMD -MP -MF"$(@:%.o=%.d)" $< -o $@
+	@echo Building: $(notdir $@)
 
 # c++ source
 $(BUILD_DIR)/%.o: %.cpp
-	$(MKDIR_P) $(dir $@)
-	$(CLANG) $(OPTS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(MKDIR_P) $(dir $@)
+	@$(CLANG) $(OPTS) $(CPPFLAGS) -Wall -c -fmessage-length=0 -U_FORTIFY_SOURCE -MMD -MP -MF"$(@:%.o=%.d)" $< -o $@
+	@echo Building: $(notdir $@)
 
-.PHONY: clean
+.PHONY: clean cleanall
+
 clean:
-	$(RM) -r $(BUILD_DIR) $(TARGET_EXEC)	
+	$(RM) -r $(BUILD_DIR)/Bela/projects/$(PROJECT)
+
+cleanall:
+	$(RM) -r $(BUILD_DIR)	
 
 -include $(DEPS)
 

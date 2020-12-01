@@ -1,0 +1,116 @@
+#!/bin/bash
+if [ $# -eq 0 ]; then
+    echo "No arguments supplied"
+    exit -1
+fi
+
+PROJECT_NAME=$1
+shift
+
+SYNC_SAMPLES=0
+CLEAN=0
+RUN_PROJECT=1
+RUN_MODE=foreground
+
+while [ -n "$1" ]
+do
+	case $1 in
+		-b)
+			RUN_MODE=screen;
+		;;
+		-f)
+			RUN_MODE=foreground;
+		;;
+		-s)
+			RUN_MODE=screenfg;
+		;;
+		-n)
+			RUN_MODE=none;
+			RUN_PROJECT=0;
+		;;
+		--clean)
+			CLEAN=1;
+		;;
+		--cleanall)
+			CLEAN=2;
+		;;
+		--samples)
+			SYNC_SAMPLES=1;
+		;;
+		--ip)
+			shift
+			XC_IP=$1;
+		;;
+	esac
+	shift
+done
+
+BASEDIR=$(dirname "$0")
+export XC_IP=${XC_IP:=192.168.6.2}
+export XC_ROOT=${XC_ROOT:="`realpath $BASEDIR/..`"}
+export XC_CL_OPTS=${XC_CL_OPTS:="-X 0"}
+export XC_USER=${XC_USER:=root}
+export XC_SSH=${XC_USER}@${XC_IP}
+
+ping -c 1 -t 1 $XC_IP >/dev/null 2>&1 
+if [ $? -ne 0 ]; then
+    echo WARNING: unable to connect to ${XC_IP}, check XC_IP?
+    exit -1
+fi
+
+xcExec() {
+    ssh -o LogLevel=ERROR $XC_SSH "$*"
+}
+
+#echo "Project: $PROJECT_NAME"
+#echo "Clean: $CLEAN"
+#echo "RUN_PROJECT: $RUN_PROJECT"
+#echo "SYNC_SAMPLES: $SYNC_SAMPLES"
+#echo "XC_IP: $XC_IP"
+#echo "XC_SSH: $XC_SSH"
+
+echo "Building before synching...."
+if [ $CLEAN == 2 ]; then
+	echo "Cleaning All...."
+	make cleanall
+elif [ $CLEAN == 1 ]; then
+	echo "Cleaning Project $PROJECT_NAME...."
+	make clean PROJECT=$PROJECT_NAME
+fi
+
+
+echo "Syncing Batk library to sysroot...."
+rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/Bela/libraries/Batk/ ${XC_ROOT}/sysroot/root/Bela/libraries/Batk/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
+echo "Building Project: $PROJECT_NAME...."
+make -j8 PROJECT=$PROJECT_NAME
+echo "done..."
+echo "Syncing to $XC_IP"
+if [ $SYNC_SAMPLES == 1 ]; then
+	echo "Syncing Samples library...."
+	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/../samples/ $XC_SSH:Bela/samples/
+fi
+echo "Syncing Library: Batk ...."
+rsync -ac --out-format="   %n" --no-t --delete-after --exclude=build --exclude=Makefile.inc ${XC_ROOT}/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/  
+rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/build/sysroot/root/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/build/  
+echo "Syncing Project: $PROJECT_NAME...."
+rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Presets --exclude=$PROJECT_NAME --exclude=build ${XC_ROOT}/Bela/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/  
+rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Makefile.inc ${XC_ROOT}/build/Bela/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/build/  
+rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/build/$PROJECT_NAME $XC_SSH:Bela/projects/$PROJECT_NAME/
+
+if [ $RUN_PROJECT == 1 ]; then
+	echo "Running Project: $PROJECT_NAME...."
+	MAKE_COMMAND="make QUIET=true --no-print-directory -C ~/Bela PROJECT='$PROJECT_NAME' CL='$XC_CL_OPTS'"
+	case $RUN_MODE in
+		# Sorry for repeating the options, but "ssh / ssh -t" makes things complicated
+		foreground)
+			ssh -t $XC_SSH "$MAKE_COMMAND run" || exit 1
+		;;
+		screen)
+			ssh $XC_SSH "$MAKE_COMMAND runscreen"
+		;;
+		screenfg)
+			ssh -t $XC_SSH "$MAKE_COMMAND runscreenfg"
+		;;
+	esac
+fi
+
