@@ -16,7 +16,7 @@ if [ "$XC_ROOT" == "" -o "$XC_IP" == "" -o "$XC_SSH" == "" ] ; then
     fi
 fi
 
-export XC_IP=${XC_IP:=192.168.7.2}
+export XC_IP=${XC_IP:=192.168.6.2}
 export XC_ROOT=${XC_ROOT:="`realpath ~/xcBela`"}
 export XC_USER=${XC_USER:=root}
 export XC_SSH=${XC_USER}@${XC_IP}
@@ -39,10 +39,10 @@ export PATH=${XC_ROOT}/scripts:${XC_ROOT}/Bela/scripts:$PATH
 echo PATH=$PATH
 
 
-ping -c 1 -t 1 $XC_IP >/dev/null 2>&1 
-if [ $? -ne 0 ]; then
-    echo WARNING: unable to connect to ${XC_IP}, check XC_IP?
-fi
+#ping -c 1 -t 1 $XC_IP >/dev/null 2>&1 
+#if [ $? -ne 0 ]; then
+#    echo WARNING: unable to connect to ${XC_IP}, check XC_IP?
+#fi
 
 
 
