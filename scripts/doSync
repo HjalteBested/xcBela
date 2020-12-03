@@ -7,10 +7,25 @@ fi
 PROJECT_NAME=$1
 shift
 
+DIR=${XC_ROOT}/Bela/projects/$PROJECT_NAME
+if [ -d "$DIR" ]; then
+  ### Take action if $DIR exists ###
+  echo "Project Found in ${DIR}..."
+else
+  ###  Control will jump here if $DIR does NOT exists ###
+  echo "Error: ${DIR} not found. Can not continue."
+  exit 1
+fi
+
+
 SYNC_SAMPLES=0
 CLEAN=0
 RUN_PROJECT=1
 RUN_MODE=foreground
+FETCH_PRESETS=0
+SYNC_PRESETS=0
+BUILD_PROJECT=1
+SYNC_PROJECT=1
 
 while [ -n "$1" ]
 do
@@ -28,6 +43,12 @@ do
 			RUN_MODE=none;
 			RUN_PROJECT=0;
 		;;
+		-ns)
+			SYNC_PROJECT=0;
+		;;
+		-nb)
+			BUILD_PROJECT=0;
+		;;
 		--clean)
 			CLEAN=1;
 		;;
@@ -40,6 +61,12 @@ do
 		--ip)
 			shift
 			XC_IP=$1;
+		;;
+		--fetch-presets)
+			FETCH_PRESETS=1;
+		;;
+		--sync-presets)
+			SYNC_PRESETS=1;
 		;;
 	esac
 	shift
@@ -63,39 +90,54 @@ xcExec() {
 }
 
 #echo "Project: $PROJECT_NAME"
-#echo "Clean: $CLEAN"
-#echo "RUN_PROJECT: $RUN_PROJECT"
-#echo "SYNC_SAMPLES: $SYNC_SAMPLES"
-#echo "XC_IP: $XC_IP"
-#echo "XC_SSH: $XC_SSH"
 
-echo "Building before synching...."
-if [ $CLEAN == 2 ]; then
-	echo "Cleaning All...."
-	make cleanall
-elif [ $CLEAN == 1 ]; then
-	echo "Cleaning Project $PROJECT_NAME...."
-	make clean PROJECT=$PROJECT_NAME
+if [ $FETCH_PRESETS == 1 ]; then 
+	echo "Fetching Presets from project: $PROJECT_NAME...."
+	rsync -ac --out-format="   %n" --no-t $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/ ${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets/  
+	exit 1
 fi
 
+if [ $BUILD_PROJECT == 1 ]; then 
+	echo "Building before synching...."
+	if [ $CLEAN == 2 ]; then
+		echo "Cleaning All...."
+		make cleanall
+	elif [ $CLEAN == 1 ]; then
+		echo "Cleaning Project $PROJECT_NAME...."
+		make clean PROJECT=$PROJECT_NAME
+	fi
+	echo "Syncing Batk library to sysroot...."
+	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/Bela/libraries/Batk/ ${XC_ROOT}/sysroot/root/Bela/libraries/Batk/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
+	echo "Building Project: $PROJECT_NAME...."
+	make -j8 PROJECT=$PROJECT_NAME
+	echo "Build done..."
+fi
 
-echo "Syncing Batk library to sysroot...."
-rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/Bela/libraries/Batk/ ${XC_ROOT}/sysroot/root/Bela/libraries/Batk/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
-echo "Building Project: $PROJECT_NAME...."
-make -j8 PROJECT=$PROJECT_NAME
-echo "done..."
-echo "Syncing to $XC_IP"
+if [ $SYNC_PROJECT == 1 ]; then
+	echo "Syncing Library: Batk ...."
+	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=build --exclude=Makefile.inc ${XC_ROOT}/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/  
+	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/build/sysroot/root/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/build/  
+	echo "Syncing Project: $PROJECT_NAME...."
+	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Presets --exclude=$PROJECT_NAME --exclude=build ${XC_ROOT}/Bela/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/  
+	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Makefile.inc ${XC_ROOT}/build/Bela/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/build/  
+	rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/build/$PROJECT_NAME $XC_SSH:Bela/projects/$PROJECT_NAME/
+fi
+
 if [ $SYNC_SAMPLES == 1 ]; then
-	echo "Syncing Samples library...."
+	echo "Syncing Samples library to $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/../samples/ $XC_SSH:Bela/samples/
 fi
-echo "Syncing Library: Batk ...."
-rsync -ac --out-format="   %n" --no-t --delete-after --exclude=build --exclude=Makefile.inc ${XC_ROOT}/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/  
-rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/build/sysroot/root/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/build/  
-echo "Syncing Project: $PROJECT_NAME...."
-rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Presets --exclude=$PROJECT_NAME --exclude=build ${XC_ROOT}/Bela/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/  
-rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Makefile.inc ${XC_ROOT}/build/Bela/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/build/  
-rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/build/$PROJECT_NAME $XC_SSH:Bela/projects/$PROJECT_NAME/
+
+if [ $SYNC_PRESETS == 1 ]; then 	
+	DIR=${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets
+	if [ -d "$DIR" ]; then
+		echo "Syncing Presets to $XC_SSH:Bela/project/$PROJECT_NAME/Presets"
+		rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets/ $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/
+	else
+		###  Control will jump here if $DIR does NOT exists ###
+		echo "--sync-presets: ${DIR} not found."
+	fi
+fi
 
 if [ $RUN_PROJECT == 1 ]; then
 	echo "Running Project: $PROJECT_NAME...."
@@ -113,4 +155,3 @@ if [ $RUN_PROJECT == 1 ]; then
 		;;
 	esac
 fi
-

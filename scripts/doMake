@@ -11,4 +11,6 @@ echo "Building Project: BassBotSlave...."
 make -j8 PROJECT=BassBotSlave
 echo "Building Project: Kalimba...."
 make -j8 PROJECT=Kalimba
+echo "Building Project: BatkTest...."
+make -j8 PROJECT=BatkTest
 echo "done..."
