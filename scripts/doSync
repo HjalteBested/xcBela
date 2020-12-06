@@ -7,13 +7,16 @@ fi
 PROJECT_NAME=$1
 shift
 
-DIR=${XC_ROOT}/Bela/projects/$PROJECT_NAME
-if [ -d "$DIR" ]; then
-  ### Take action if $DIR exists ###
-  echo "Project Found in ${DIR}..."
+PROJECT_FOLDER=${XC_ROOT}/Bela/projects
+PROJECT_DIR=$PROJECT_FOLDER/$PROJECT_NAME
+if [ -d "$PROJECT_DIR" ]; then
+  ### Take action if $PROJECT_DIR exists ###
+  echo "Project Found in ${PROJECT_DIR}..."
 else
-  ###  Control will jump here if $DIR does NOT exists ###
-  echo "Error: ${DIR} not found. Can not continue."
+  ###  Control will jump here if $PROJECT_DIR does NOT exists ###
+  echo "Error: Project $PROJECT_NAME not found...... available projects:"
+  ls "$PROJECT_FOLDER" -1
+  echo "------------------------------------------------------------"
   exit 1
 fi
 
@@ -26,6 +29,7 @@ FETCH_PRESETS=0
 SYNC_PRESETS=0
 BUILD_PROJECT=1
 SYNC_PROJECT=1
+CONNECT=1
 
 while [ -n "$1" ]
 do
@@ -48,6 +52,9 @@ do
 		;;
 		-nb)
 			BUILD_PROJECT=0;
+		;;
+		-nc)
+			CONNECT=0;
 		;;
 		--clean)
 			CLEAN=1;
@@ -79,11 +86,6 @@ export XC_CL_OPTS=${XC_CL_OPTS:="-X 0"}
 export XC_USER=${XC_USER:=root}
 export XC_SSH=${XC_USER}@${XC_IP}
 
-ping -c 1 -t 1 $XC_IP >/dev/null 2>&1 
-if [ $? -ne 0 ]; then
-    echo WARNING: unable to connect to ${XC_IP}, check XC_IP?
-    exit -1
-fi
 
 xcExec() {
     ssh -o LogLevel=ERROR $XC_SSH "$*"
@@ -92,7 +94,7 @@ xcExec() {
 #echo "Project: $PROJECT_NAME"
 
 if [ $FETCH_PRESETS == 1 ]; then 
-	echo "Fetching Presets from project: $PROJECT_NAME...."
+	echo "Fetching Presets from project: $PROJECT_NAME on $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/ ${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets/  
 	exit 1
 fi
@@ -113,12 +115,22 @@ if [ $BUILD_PROJECT == 1 ]; then
 	echo "Build done..."
 fi
 
+if [ $CONNECT == 1 ]; then
+	ping -c 1 -t 1 $XC_IP >/dev/null 2>&1 
+	if [ $? -ne 0 ]; then
+	    echo WARNING: unable to connect to ${XC_IP}, check XC_IP?
+	    exit -1
+	fi
+else
+	exit 1
+fi
+
 if [ $SYNC_PROJECT == 1 ]; then
-	echo "Syncing Library: Batk ...."
+	echo "Syncing Library: Batk to $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=build --exclude=Makefile.inc ${XC_ROOT}/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/  
 	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/build/sysroot/root/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/build/  
-	echo "Syncing Project: $PROJECT_NAME...."
-	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Presets --exclude=$PROJECT_NAME --exclude=build ${XC_ROOT}/Bela/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/  
+	echo "Syncing Project: $PROJECT_NAME to $XC_SSH...."
+	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Presets --exclude=$PROJECT_NAME --exclude=build ${PROJECT_DIR}/ $XC_SSH:Bela/projects/$PROJECT_NAME/  
 	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Makefile.inc ${XC_ROOT}/build/Bela/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/build/  
 	rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/build/$PROJECT_NAME $XC_SSH:Bela/projects/$PROJECT_NAME/
 fi
@@ -129,18 +141,18 @@ if [ $SYNC_SAMPLES == 1 ]; then
 fi
 
 if [ $SYNC_PRESETS == 1 ]; then 	
-	DIR=${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets
-	if [ -d "$DIR" ]; then
+	PROJECT_DIR=${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets
+	if [ -d "$PROJECT_DIR" ]; then
 		echo "Syncing Presets to $XC_SSH:Bela/project/$PROJECT_NAME/Presets"
 		rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets/ $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/
 	else
-		###  Control will jump here if $DIR does NOT exists ###
-		echo "--sync-presets: ${DIR} not found."
+		###  Control will jump here if $PROJECT_DIR does NOT exists ###
+		echo "--sync-presets: ${PROJECT_DIR} not found."
 	fi
 fi
 
 if [ $RUN_PROJECT == 1 ]; then
-	echo "Running Project: $PROJECT_NAME...."
+	echo "Running Project: $PROJECT_NAME on $XC_SSH...."
 	MAKE_COMMAND="make QUIET=true --no-print-directory -C ~/Bela PROJECT='$PROJECT_NAME' CL='$XC_CL_OPTS'"
 	case $RUN_MODE in
 		# Sorry for repeating the options, but "ssh / ssh -t" makes things complicated
