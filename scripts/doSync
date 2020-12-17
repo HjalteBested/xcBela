@@ -30,10 +30,15 @@ SYNC_PRESETS=0
 BUILD_PROJECT=1
 SYNC_PROJECT=1
 CONNECT=1
-
+ENABLE_STARTUP=1
+RUN_IN_LOOP=1
 while [ -n "$1" ]
 do
 	case $1 in
+		-c)
+			shift;
+			COMMAND_ARGS="$1";
+		;;
 		-b)
 			RUN_MODE=screen;
 		;;
@@ -62,7 +67,7 @@ do
 		--cleanall)
 			CLEAN=2;
 		;;
-		--samples)
+		--sync-samples)
 			SYNC_SAMPLES=1;
 		;;
 		--ip)
@@ -75,6 +80,19 @@ do
 		--sync-presets)
 			SYNC_PRESETS=1;
 		;;
+		--startup)
+			ENABLE_STARTUP=1;
+			RUN_IN_LOOP=0;
+		;;
+		--startuploop)
+			ENABLE_STARTUP=1;
+			RUN_IN_LOOP=1;
+		;;
+		--nostartup)
+			ENABLE_STARTUP=0;
+			RUN_IN_LOOP=0;
+		;;	
+
 	esac
 	shift
 done
@@ -91,7 +109,8 @@ xcExec() {
     ssh -o LogLevel=ERROR $XC_SSH "$*"
 }
 
-#echo "Project: $PROJECT_NAME"
+#echo "ENABLE_STARTUP: $ENABLE_STARTUP"
+#echo "RUN_IN_LOOP: $RUN_IN_LOOP"
 
 if [ $FETCH_PRESETS == 1 ]; then 
 	echo "Fetching Presets from project: $PROJECT_NAME on $XC_SSH...."
@@ -115,6 +134,7 @@ if [ $BUILD_PROJECT == 1 ]; then
 	echo "Build done..."
 fi
 
+
 if [ $CONNECT == 1 ]; then
 	ping -c 1 -t 1 $XC_IP >/dev/null 2>&1 
 	if [ $? -ne 0 ]; then
@@ -125,7 +145,21 @@ else
 	exit 1
 fi
 
+echo "Syncing time: $(date) to $XC_SSH...."
+ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 $XC_SSH "date -s \"`date '+%Y%m%d %T %z'`\" > /dev/null"
+echo "done..."
+
+
 if [ $SYNC_PROJECT == 1 ]; then
+	if [ $CLEAN == 2 ]; then
+		echo "Cleaning Remote Library Batk...."
+		ssh $XC_SSH "rm -rf ~/Bela/libraries/Batk/build/*"
+		echo "Cleaning Remote Project $PROJECT_NAME...."
+		ssh $XC_SSH "make clean QUIET=true --no-print-directory -C ~/Bela PROJECT='$PROJECT_NAME'"
+	elif [ $CLEAN == 1 ]; then
+		echo "Cleaning Remote Project $PROJECT_NAME...."
+		ssh $XC_SSH "make clean QUIET=true --no-print-directory -C ~/Bela PROJECT='$PROJECT_NAME'"
+	fi
 	echo "Syncing Library: Batk to $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=build --exclude=Makefile.inc ${XC_ROOT}/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/  
 	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/build/sysroot/root/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/build/  
@@ -140,8 +174,7 @@ if [ $SYNC_SAMPLES == 1 ]; then
 	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/../samples/ $XC_SSH:Bela/samples/
 fi
 
-if [ $SYNC_PRESETS == 1 ]; then 	
-	PROJECT_DIR=${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets
+if [ $SYNC_PRESETS == 1 ]; then
 	if [ -d "$PROJECT_DIR" ]; then
 		echo "Syncing Presets to $XC_SSH:Bela/project/$PROJECT_NAME/Presets"
 		rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets/ $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/
@@ -151,9 +184,19 @@ if [ $SYNC_PRESETS == 1 ]; then
 	fi
 fi
 
-if [ $RUN_PROJECT == 1 ]; then
+MAKE_COMMAND="make QUIET=true --no-print-directory -C ~/Bela PROJECT='$PROJECT_NAME' CL='$XC_CL_OPTS $COMMAND_ARGS'"
+if [ $ENABLE_STARTUP -eq 0 ]; then
+    ssh $XC_SSH "$MAKE_COMMAND nostartup" 
+elif [ $RUN_IN_LOOP -eq 1 ]; then
+	echo "Setting $PROJECT_NAME as startuploop project..."
+	ssh $XC_SSH "$MAKE_COMMAND startuploop" 
+else [ $RUN_IN_LOOP -eq 0 ]; 
+	echo "Setting $PROJECT_NAME as startup project..."
+	ssh $XC_SSH "$MAKE_COMMAND startup" 
+fi
+
+if [ $RUN_PROJECT -eq 1 ]; then
 	echo "Running Project: $PROJECT_NAME on $XC_SSH...."
-	MAKE_COMMAND="make QUIET=true --no-print-directory -C ~/Bela PROJECT='$PROJECT_NAME' CL='$XC_CL_OPTS'"
 	case $RUN_MODE in
 		# Sorry for repeating the options, but "ssh / ssh -t" makes things complicated
 		foreground)
