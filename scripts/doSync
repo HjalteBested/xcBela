@@ -17,7 +17,7 @@ else
   echo "Error: Project $PROJECT_NAME not found...... available projects:"
   ls "$PROJECT_FOLDER" -1
   echo "------------------------------------------------------------"
-  exit 1
+  exit -1
 fi
 
 
@@ -33,6 +33,8 @@ SYNC_PROJECT=1
 CONNECT=1
 ENABLE_STARTUP=1
 RUN_IN_LOOP=1
+IDE_RUN=0
+IDE_STARTUP=0
 while [ -n "$1" ]
 do
 	case $1 in
@@ -98,7 +100,18 @@ do
 			ENABLE_STARTUP=0;
 			RUN_IN_LOOP=0;
 		;;	
-
+		--ide-start)
+			IDE_RUN=1;
+		;;	
+		--ide-stop)
+			IDE_RUN=0;
+		;;			
+		--ide-startup)
+			IDE_STARTUP=1;
+		;;	
+		--ide-nostartup)
+			IDE_STARTUP=0;
+		;;	
 	esac
 	shift
 done
@@ -119,12 +132,12 @@ xcExec() {
 #echo "RUN_IN_LOOP: $RUN_IN_LOOP"
 
 
-if [ $BUILD_PROJECT == 1 ]; then 
+if [ $BUILD_PROJECT -eq 1 ]; then 
 	echo "Building before synching...."
-	if [ $CLEAN == 2 ]; then
+	if [ $CLEAN -eq 2 ]; then
 		echo "Cleaning All...."
 		make cleanall
-	elif [ $CLEAN == 1 ]; then
+	elif [ $CLEAN -eq 1 ]; then
 		echo "Cleaning Project $PROJECT_NAME...."
 		make clean PROJECT=$PROJECT_NAME
 	fi
@@ -136,7 +149,7 @@ if [ $BUILD_PROJECT == 1 ]; then
 fi
 
 
-if [ $CONNECT == 1 ]; then
+if [ $CONNECT -eq 1 ]; then
 	ping -c 1 -t 1 $XC_IP >/dev/null 2>&1 
 	if [ $? -ne 0 ]; then
 	    echo WARNING: unable to connect to ${XC_IP}, check XC_IP?
@@ -153,15 +166,31 @@ echo "done..."
 # Define default make command for project
 MAKE_COMMAND="make QUIET=true --no-print-directory -C ~/Bela PROJECT='$PROJECT_NAME' CL='$XC_CL_OPTS $COMMAND_ARGS'"
 
-if [ $SYNC_PROJECT == 1 ]; then
-	if [ $CLEAN_REMOTE == 2 ]; then
+# IDE Settings
+if [ $IDE_RUN -eq 1 ]; then
+	ssh $XC_SSH "$MAKE_COMMAND idestart" 
+else
+	ssh $XC_SSH "$MAKE_COMMAND idestop"
+fi
+
+if [ $IDE_STARTUP -eq 1 ]; then
+	ssh $XC_SSH "$MAKE_COMMAND idestartup" 
+	echo "done..."
+else
+	ssh $XC_SSH "$MAKE_COMMAND idenostartup"
+	echo "done..."
+fi
+
+
+if [ $SYNC_PROJECT -eq 1 ]; then
+	if [ $CLEAN_REMOTE -eq 2 ]; then
 		echo "Cleaning Remote Library Batk...."
 		ssh $XC_SSH "rm -rf ~/Bela/libraries/Batk/build/*"
 		echo "Cleaning Remote Project $PROJECT_NAME...."
 		ssh $XC_SSH "$MAKE_COMMAND clean"
-	elif [ $CLEAN_REMOTE == 1 ]; then
+	elif [ $CLEAN_REMOTE -eq 1 ]; then
 		echo "Cleaning Remote Project $PROJECT_NAME...."
-		ssh $XC_SSH "make clean QUIET=true --no-print-directory -C ~/Bela PROJECT='$PROJECT_NAME'"
+		ssh $XC_SSH "$MAKE_COMMAND clean"
 	fi
 	echo "Syncing Library: Batk to $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=build --exclude=Makefile.inc ${XC_ROOT}/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/  
@@ -172,18 +201,18 @@ if [ $SYNC_PROJECT == 1 ]; then
 	rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/build/$PROJECT_NAME $XC_SSH:Bela/projects/$PROJECT_NAME/
 fi
 
-if [ $SYNC_SAMPLES == 1 ]; then
+if [ $SYNC_SAMPLES -eq 1 ]; then
 	echo "Syncing Samples library to $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/../samples/ $XC_SSH:Bela/samples/
 fi
 
-if [ $FETCH_PRESETS == 1 ]; then 
+if [ $FETCH_PRESETS -eq 1 ]; then 
 	echo "Fetching Presets from project: $PROJECT_NAME on $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/ ${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets/  
 	exit 1
 fi
 
-if [ $SYNC_PRESETS == 1 ]; then
+if [ $SYNC_PRESETS -eq 1 ]; then
 	if [ -d "$PROJECT_DIR" ]; then
 		echo "Syncing Presets to $XC_SSH:Bela/project/$PROJECT_NAME/Presets"
 		rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets/ $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/
