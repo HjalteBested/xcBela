@@ -1,6 +1,6 @@
 #!/bin/bash
 if [ $# -eq 0 ]; then
-    echo "No arguments supplied"
+    echo "No arguments supplied... Must supply at least a project name as first argument..." 
     exit -1
 fi
 
