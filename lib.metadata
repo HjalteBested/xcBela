@@ -1,0 +1,17 @@
+name=MyLib
+version=1.0.0
+author=
+maintainer=
+description=
+examples=
+license=
+url=
+board=*
+dependencies=
+LDFLAGS=
+LDLIBS=
+CXXFLAGS=
+CC=
+CXX=
+CFLAGS=
+CPPFLAGS=

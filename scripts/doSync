@@ -31,10 +31,11 @@ SYNC_PRESETS=0
 BUILD_PROJECT=1
 SYNC_PROJECT=1
 CONNECT=1
+CHANGE_STARTUP=0
 ENABLE_STARTUP=1
 RUN_IN_LOOP=1
-IDE_RUN=0
-IDE_STARTUP=0
+IDE_RUN=-1
+IDE_STARTUP=-1
 while [ -n "$1" ]
 do
 	case $1 in
@@ -91,14 +92,17 @@ do
 		--startup)
 			ENABLE_STARTUP=1;
 			RUN_IN_LOOP=0;
+			CHANGE_STARTUP=1;
 		;;
 		--startuploop)
 			ENABLE_STARTUP=1;
 			RUN_IN_LOOP=1;
+			CHANGE_STARTUP=1;
 		;;
 		--nostartup)
 			ENABLE_STARTUP=0;
 			RUN_IN_LOOP=0;
+			CHANGE_STARTUP=1;
 		;;	
 		--ide-start)
 			IDE_RUN=1;
@@ -143,6 +147,12 @@ if [ $BUILD_PROJECT -eq 1 ]; then
 	fi
 	echo "Syncing Batk library to sysroot...."
 	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/Bela/libraries/Batk/ ${XC_ROOT}/sysroot/root/Bela/libraries/Batk/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
+	echo "Syncing midifile library to sysroot...."
+	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=*.cpp --exclude=lib.metadata ${XC_ROOT}/../../Repositories/midifile/include/ ${XC_ROOT}/sysroot/root/Bela/libraries/midifile/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
+	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=*.h   --exclude=lib.metadata ${XC_ROOT}/../../Repositories/midifile/src/     ${XC_ROOT}/sysroot/root/Bela/libraries/midifile/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
+	rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/lib.metadata     ${XC_ROOT}/sysroot/root/Bela/libraries/midifile/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
+	rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/sysroot/root/Bela/libraries/midifile/  ${XC_ROOT}/Bela/libraries/midifile/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
+	
 	echo "Building Project: $PROJECT_NAME...."
 	make -j8 PROJECT=$PROJECT_NAME
 	echo "Build done..."
@@ -169,23 +179,25 @@ MAKE_COMMAND="make QUIET=true --no-print-directory -C ~/Bela PROJECT='$PROJECT_N
 # IDE Settings
 if [ $IDE_RUN -eq 1 ]; then
 	ssh $XC_SSH "$MAKE_COMMAND idestart" 
-else
+elif [ $IDE_RUN -eq 0 ]; then
 	ssh $XC_SSH "$MAKE_COMMAND idestop"
 fi
 
 if [ $IDE_STARTUP -eq 1 ]; then
 	ssh $XC_SSH "$MAKE_COMMAND idestartup" 
 	echo "done..."
-else
+elif [ $IDE_STARTUP -eq 0 ]; then
 	ssh $XC_SSH "$MAKE_COMMAND idenostartup"
 	echo "done..."
 fi
 
-
+# Sync project and libraries
 if [ $SYNC_PROJECT -eq 1 ]; then
 	if [ $CLEAN_REMOTE -eq 2 ]; then
 		echo "Cleaning Remote Library Batk...."
 		ssh $XC_SSH "rm -rf ~/Bela/libraries/Batk/build/*"
+		echo "Cleaning Remote Library midifile...."
+		ssh $XC_SSH "rm -rf ~/Bela/libraries/midifile/build/*"
 		echo "Cleaning Remote Project $PROJECT_NAME...."
 		ssh $XC_SSH "$MAKE_COMMAND clean"
 	elif [ $CLEAN_REMOTE -eq 1 ]; then
@@ -195,23 +207,29 @@ if [ $SYNC_PROJECT -eq 1 ]; then
 	echo "Syncing Library: Batk to $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=build --exclude=Makefile.inc ${XC_ROOT}/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/  
 	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/build/sysroot/root/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/build/  
+	echo "Syncing Library: midifile to $XC_SSH...."
+	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=build --exclude=Makefile.inc ${XC_ROOT}/sysroot/root/Bela/libraries/midifile/ $XC_SSH:Bela/libraries/midifile/  
+	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/build/sysroot/root/Bela/libraries/midifile/ $XC_SSH:Bela/libraries/midifile/build/  
 	echo "Syncing Project: $PROJECT_NAME to $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Presets --exclude=$PROJECT_NAME --exclude=build ${PROJECT_DIR}/ $XC_SSH:Bela/projects/$PROJECT_NAME/  
 	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Makefile.inc ${XC_ROOT}/build/Bela/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/build/  
 	rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/build/$PROJECT_NAME $XC_SSH:Bela/projects/$PROJECT_NAME/
 fi
 
+# Sync the samples library
 if [ $SYNC_SAMPLES -eq 1 ]; then
 	echo "Syncing Samples library to $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/../samples/ $XC_SSH:Bela/samples/
 fi
 
+# Sync presets from Bela to Computer
 if [ $FETCH_PRESETS -eq 1 ]; then 
 	echo "Fetching Presets from project: $PROJECT_NAME on $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/ ${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets/  
 	exit 1
 fi
 
+# Sync presets from computer to Bela
 if [ $SYNC_PRESETS -eq 1 ]; then
 	if [ -d "$PROJECT_DIR" ]; then
 		echo "Syncing Presets to $XC_SSH:Bela/project/$PROJECT_NAME/Presets"
@@ -222,16 +240,20 @@ if [ $SYNC_PRESETS -eq 1 ]; then
 	fi
 fi
 
-if [ $ENABLE_STARTUP -eq 0 ]; then
-    ssh $XC_SSH "$MAKE_COMMAND nostartup" 
-elif [ $RUN_IN_LOOP -eq 1 ]; then
-	echo "Setting $PROJECT_NAME as startuploop project..."
-	ssh $XC_SSH "$MAKE_COMMAND startuploop" 
-else [ $RUN_IN_LOOP -eq 0 ]; 
-	echo "Setting $PROJECT_NAME as startup project..."
-	ssh $XC_SSH "$MAKE_COMMAND startup" 
+# Change the startup settings
+if [ $CHANGE_STARTUP -eq 1 ]; then
+	if [ $ENABLE_STARTUP -eq 0 ]; then
+	    ssh $XC_SSH "$MAKE_COMMAND nostartup" 
+	elif [ $RUN_IN_LOOP -eq 1 ]; then
+		echo "Setting $PROJECT_NAME as startuploop project..."
+		ssh $XC_SSH "$MAKE_COMMAND startuploop" 
+	else [ $RUN_IN_LOOP -eq 0 ]; 
+		echo "Setting $PROJECT_NAME as startup project..."
+		ssh $XC_SSH "$MAKE_COMMAND startup" 
+	fi
 fi
 
+# Run the project
 if [ $RUN_PROJECT -eq 1 ]; then
 	echo "Running Project: $PROJECT_NAME on $XC_SSH...."
 	case $RUN_MODE in

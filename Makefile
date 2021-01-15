@@ -4,7 +4,7 @@ TARGET_EXEC := ./build/$(PROJECT)
 SYSROOT := ./sysroot
 BUILD_DIR := ./build
 PROJECT_SRC := ./Bela/projects/$(PROJECT)
-BATK_SRC := ./sysroot/root/Bela/libraries/Batk
+BATK_SRC := ./sysroot/root/Bela/libraries/Batk ./sysroot/root/Bela/libraries/midifile
 
 PROJECT_SRCS := $(shell	find $(PROJECT_SRC)	-name	*.cpp	-or	-name	*.c	-or	-name	*.s) ./Bela/Core/default_main.cpp
 PROJECT_OBJS := $(PROJECT_SRCS:%.cpp=$(BUILD_DIR)/%.o)
