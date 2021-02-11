@@ -7,18 +7,23 @@ fi
 PROJECT_NAME=$1
 shift
 
-PROJECT_FOLDER=${XC_ROOT}/Bela/projects
-PROJECT_DIR=$PROJECT_FOLDER/$PROJECT_NAME
+SRC_NAME=src # Name of the folder containing the source files
+PROJECTS_FOLDER=${XC_ROOT}/$SRC_NAME/projects
+LIBS_FOLDER=${XC_ROOT}/$SRC_NAME/libraries
+
+PROJECT_DIR=$PROJECTS_FOLDER/$PROJECT_NAME
 if [ -d "$PROJECT_DIR" ]; then
   ### Take action if $PROJECT_DIR exists ###
   echo "Project Found in ${PROJECT_DIR}..."
 else
   ###  Control will jump here if $PROJECT_DIR does NOT exists ###
   echo "Error: Project $PROJECT_NAME not found...... available projects:"
-  ls "$PROJECT_FOLDER" -1
+  ls "$PROJECTS_FOLDER" -1
   echo "------------------------------------------------------------"
   exit -1
 fi
+
+
 
 
 SYNC_SAMPLES=0
@@ -145,13 +150,12 @@ if [ $BUILD_PROJECT -eq 1 ]; then
 		echo "Cleaning Project $PROJECT_NAME...."
 		make clean PROJECT=$PROJECT_NAME
 	fi
-	echo "Syncing Batk library to sysroot...."
-	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/Bela/libraries/Batk/ ${XC_ROOT}/sysroot/root/Bela/libraries/Batk/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
-	echo "Syncing midifile library to sysroot...."
-	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=*.cpp --exclude=lib.metadata ${XC_ROOT}/../../Repositories/midifile/include/ ${XC_ROOT}/sysroot/root/Bela/libraries/midifile/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
-	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=*.h   --exclude=lib.metadata ${XC_ROOT}/../../Repositories/midifile/src/     ${XC_ROOT}/sysroot/root/Bela/libraries/midifile/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
-	rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/lib.metadata     ${XC_ROOT}/sysroot/root/Bela/libraries/midifile/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
-	rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/sysroot/root/Bela/libraries/midifile/  ${XC_ROOT}/Bela/libraries/midifile/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
+	echo "Syncing libraries to sysroot...."
+	shopt -s dotglob
+	find $LIBS_FOLDER/* -prune -type d | while IFS= read -r d; do 
+		echo "Syncing $(basename $d) library to sysroot...."
+		rsync -ac --out-format="   %n" --no-t --delete-after --exclude=.git* $d/ ${XC_ROOT}/sysroot/root/Bela/libraries/$(basename $d)/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
+	done
 	
 	echo "Building Project: $PROJECT_NAME...."
 	make -j8 PROJECT=$PROJECT_NAME
@@ -194,25 +198,29 @@ fi
 # Sync project and libraries
 if [ $SYNC_PROJECT -eq 1 ]; then
 	if [ $CLEAN_REMOTE -eq 2 ]; then
-		echo "Cleaning Remote Library Batk...."
-		ssh $XC_SSH "rm -rf ~/Bela/libraries/Batk/build/*"
-		echo "Cleaning Remote Library midifile...."
-		ssh $XC_SSH "rm -rf ~/Bela/libraries/midifile/build/*"
+		shopt -s dotglob
+		find $LIBS_FOLDER/* -prune -type d | while IFS= read -r d; do
+			LIBNAME=$(basename $d) 
+			echo "Cleaning Remote Library $LIBNAME...."
+			ssh $XC_SSH "rm -rf ~/Bela/libraries/$LIBNAME/build/*"
+		done
 		echo "Cleaning Remote Project $PROJECT_NAME...."
 		ssh $XC_SSH "$MAKE_COMMAND clean"
 	elif [ $CLEAN_REMOTE -eq 1 ]; then
 		echo "Cleaning Remote Project $PROJECT_NAME...."
 		ssh $XC_SSH "$MAKE_COMMAND clean"
 	fi
-	echo "Syncing Library: Batk to $XC_SSH...."
-	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=build --exclude=Makefile.inc ${XC_ROOT}/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/  
-	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/build/sysroot/root/Bela/libraries/Batk/ $XC_SSH:Bela/libraries/Batk/build/  
-	echo "Syncing Library: midifile to $XC_SSH...."
-	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=build --exclude=Makefile.inc ${XC_ROOT}/sysroot/root/Bela/libraries/midifile/ $XC_SSH:Bela/libraries/midifile/  
-	rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/build/sysroot/root/Bela/libraries/midifile/ $XC_SSH:Bela/libraries/midifile/build/  
+	echo "Syncing libraries to $XC_SSH...."
+	shopt -s dotglob
+	find $LIBS_FOLDER/* -prune -type d | while IFS= read -r d; do
+		LIBNAME=$(basename $d) 
+		echo "Syncing $LIBNAME library to $XC_SSH...."
+		rsync -ac --out-format="   %n" --no-t --delete-after --exclude=.git* --exclude=build $d/ $XC_SSH:Bela/libraries/$LIBNAME/ #trailing slashes used here make sure rsync does not create another folder inside the target folder
+		rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/build/$SRC_NAME/libraries/$LIBNAME/ $XC_SSH:Bela/libraries/$LIBNAME/build/  
+	done
 	echo "Syncing Project: $PROJECT_NAME to $XC_SSH...."
 	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Presets --exclude=$PROJECT_NAME --exclude=build ${PROJECT_DIR}/ $XC_SSH:Bela/projects/$PROJECT_NAME/  
-	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Makefile.inc ${XC_ROOT}/build/Bela/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/build/  
+	rsync -ac --out-format="   %n" --no-t --delete-after --exclude=Makefile.inc ${XC_ROOT}/build/$SRC_NAME/projects/$PROJECT_NAME/ $XC_SSH:Bela/projects/$PROJECT_NAME/build/  
 	rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/build/$PROJECT_NAME $XC_SSH:Bela/projects/$PROJECT_NAME/
 fi
 

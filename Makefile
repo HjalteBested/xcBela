@@ -1,21 +1,20 @@
 include MakefileTop.in
 
 TARGET_EXEC := ./build/$(PROJECT)
-SYSROOT := ./sysroot
 BUILD_DIR := ./build
-PROJECT_SRC := ./Bela/projects/$(PROJECT)
-BATK_SRC := ./sysroot/root/Bela/libraries/Batk ./sysroot/root/Bela/libraries/midifile
+PROJECT_SRC := ./src/projects/$(PROJECT)
+LIBRARIES_SRC := ./src/libraries/*
 
 PROJECT_SRCS := $(shell	find $(PROJECT_SRC)	-name	*.cpp	-or	-name	*.c	-or	-name	*.s) ./Bela/Core/default_main.cpp
 PROJECT_OBJS := $(PROJECT_SRCS:%.cpp=$(BUILD_DIR)/%.o)
 PROJECT_DEPS := $(PROJECT_OBJS:.o=.d)
 
-BATK_SRCS := $(shell find $(BATK_SRC)	-name	*.cpp	-or	-name	*.c	-or	-name	*.s)
-BATK_OBJS := $(BATK_SRCS:%.cpp=$(BUILD_DIR)/%.o)
-BATK_DEPS := $(BATK_OBJS:.o=.d)
+LIBRARIES_SRCS := $(shell find $(LIBRARIES_SRC)	-name	*.cpp	-or	-name	*.c	-or	-name	*.s)
+LIB_OBJS := $(LIBRARIES_SRCS:%.cpp=$(BUILD_DIR)/%.o)
+LIB_DEPS := $(LIB_OBJS:.o=.d)
 
-OBJS := $(PROJECT_OBJS) $(BATK_OBJS)
-DEPS := $(PROJECT_DEPS) $(BATK_DEPS)
+OBJS := $(PROJECT_OBJS) $(LIB_OBJS)
+DEPS := $(PROJECT_DEPS) $(LIB_DEPS)
 
 # application
 $(TARGET_EXEC): $(OBJS)
