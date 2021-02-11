@@ -1,5 +1,6 @@
 TOOLCHAIN=/usr/lib/llvm-10
 CLANG=/usr/bin/clang++-10
+SYSROOT := ./sysroot
 
 #-Wextra
 CPPFLAGS=-O3 -fPIC \
@@ -29,3 +30,4 @@ LDFLAGS=-Wl,--no-as-needed -L${SYSROOT}/usr/local/lib \
     -lcobalt -lmodechk -lpthread -lrt\
     -lprussdrv -lstdc++ -lasound -lseasocks -lNE10 -lmathneon -ldl \
     -latomic -lsndfile -l:libbelafull.a
+

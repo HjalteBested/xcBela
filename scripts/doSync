@@ -150,7 +150,6 @@ if [ $BUILD_PROJECT -eq 1 ]; then
 		echo "Cleaning Project $PROJECT_NAME...."
 		make clean PROJECT=$PROJECT_NAME
 	fi
-	echo "Syncing libraries to sysroot...."
 	shopt -s dotglob
 	find $LIBS_FOLDER/* -prune -type d | while IFS= read -r d; do 
 		echo "Syncing $(basename $d) library to sysroot...."
@@ -202,7 +201,7 @@ if [ $SYNC_PROJECT -eq 1 ]; then
 		find $LIBS_FOLDER/* -prune -type d | while IFS= read -r d; do
 			LIBNAME=$(basename $d) 
 			echo "Cleaning Remote Library $LIBNAME...."
-			ssh $XC_SSH "rm -rf ~/Bela/libraries/$LIBNAME/build/*"
+			ssh $XC_SSH "rm -rf ~/Bela/libraries/$LIBNAME/build/*" &
 		done
 		echo "Cleaning Remote Project $PROJECT_NAME...."
 		ssh $XC_SSH "$MAKE_COMMAND clean"
@@ -210,7 +209,6 @@ if [ $SYNC_PROJECT -eq 1 ]; then
 		echo "Cleaning Remote Project $PROJECT_NAME...."
 		ssh $XC_SSH "$MAKE_COMMAND clean"
 	fi
-	echo "Syncing libraries to $XC_SSH...."
 	shopt -s dotglob
 	find $LIBS_FOLDER/* -prune -type d | while IFS= read -r d; do
 		LIBNAME=$(basename $d) 
