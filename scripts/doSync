@@ -231,7 +231,7 @@ fi
 # Sync presets from Bela to Computer
 if [ $FETCH_PRESETS -eq 1 ]; then 
 	echo "Fetching Presets from project: $PROJECT_NAME on $XC_SSH...."
-	rsync -ac --out-format="   %n" --no-t $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/ ${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets/  
+	rsync -ac --out-format="   %n" --no-t $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/ ${XC_ROOT}/$SRC_NAME/projects/$PROJECT_NAME/Presets/  
 	exit 1
 fi
 
@@ -239,7 +239,7 @@ fi
 if [ $SYNC_PRESETS -eq 1 ]; then
 	if [ -d "$PROJECT_DIR" ]; then
 		echo "Syncing Presets to $XC_SSH:Bela/project/$PROJECT_NAME/Presets"
-		rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/Bela/projects/$PROJECT_NAME/Presets/ $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/
+		rsync -ac --out-format="   %n" --no-t ${XC_ROOT}/$SRC_NAME/projects/$PROJECT_NAME/Presets/ $XC_SSH:Bela/projects/$PROJECT_NAME/Presets/
 	else
 		###  Control will jump here if $PROJECT_DIR does NOT exists ###
 		echo "--sync-presets: ${PROJECT_DIR} not found."
