@@ -2,8 +2,8 @@ include MakefileTop.in
 
 TARGET_EXEC := ./build/$(PROJECT)
 BUILD_DIR := ./build
-PROJECT_SRC := ./src/projects/$(PROJECT)
-LIBRARIES_SRC := ./src/libraries/*
+PROJECT_SRC := ./MyBelaCode/projects/$(PROJECT)
+LIBRARIES_SRC := ./MyBelaCode/libraries/*
 
 PROJECT_SRCS := $(shell	find $(PROJECT_SRC)	-name	*.cpp	-or	-name	*.c	-or	-name	*.s) ./Bela/Core/default_main.cpp
 PROJECT_OBJS := $(PROJECT_SRCS:%.cpp=$(BUILD_DIR)/%.o)

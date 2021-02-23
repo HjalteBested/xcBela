@@ -1,3 +1,6 @@
 [submodule "Bela"]
 	path = Bela
 	url = https://github.com/BelaPlatform/Bela.git
+[submodule "MyBelaCode"]
+	path = MyBelaCode
+	url = https://github.com/HjalteBested/MyBelaCode.git

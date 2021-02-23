@@ -7,7 +7,7 @@ fi
 PROJECT_NAME=$1
 shift
 
-SRC_NAME=src # Name of the folder containing the source files
+SRC_NAME=MyBelaCode # Name of the folder containing the source files
 PROJECTS_FOLDER=${XC_ROOT}/$SRC_NAME/projects
 LIBS_FOLDER=${XC_ROOT}/$SRC_NAME/libraries
 
