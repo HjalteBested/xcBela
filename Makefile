@@ -47,4 +47,4 @@ cleanall:
 
 MKDIR_P := mkdir -p
 
-include $(DEPS)
+-include $(DEPS)
