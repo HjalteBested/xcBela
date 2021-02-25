@@ -1,16 +1,14 @@
 #!/bin/bash
-echo "Syncing Batk library to sysroot...."
-rsync -ac --out-format="   %n" --no-t --delete-after ${XC_ROOT}/Bela/libraries/Batk/ ${XC_ROOT}/sysroot/root/Bela/libraries/Batk/ 
 echo "Building Project: SpringBoard...."
-make -j8 PROJECT=SpringBoard
+doSync SpringBoard "$*"
 echo "Building Project: TurnHandle...."
-make -j8 PROJECT=TurnHandle
+doSync TurnHandle "$*"
 echo "Building Project: BassBot...."
-make -j8 PROJECT=BassBot
+doSync BassBot "$*"
 echo "Building Project: BassBotSlave...."
-make -j8 PROJECT=BassBotSlave
+doSync BassBotSlave "$*"
 echo "Building Project: Kalimba...."
-make -j8 PROJECT=Kalimba
+doSync Kalimba "$*"
 echo "Building Project: BatkTest...."
-make -j8 PROJECT=BatkTest
+doSync BatkTest "$*"
 echo "done..."
