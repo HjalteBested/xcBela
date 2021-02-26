@@ -1,14 +1,14 @@
 #!/bin/bash
 echo "Building Project: SpringBoard...."
-doSync SpringBoard "$*"
+doSync SpringBoard $*
 echo "Building Project: TurnHandle...."
-doSync TurnHandle "$*"
+doSync TurnHandle $*
 echo "Building Project: BassBot...."
-doSync BassBot "$*"
+doSync BassBot $*
 echo "Building Project: BassBotSlave...."
-doSync BassBotSlave "$*"
+doSync BassBotSlave $*
 echo "Building Project: Kalimba...."
-doSync Kalimba "$*"
+doSync Kalimba $*
 echo "Building Project: BatkTest...."
-doSync BatkTest "$*"
+doSync BatkTest $*
 echo "done..."
