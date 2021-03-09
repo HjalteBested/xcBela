@@ -7,6 +7,9 @@ fi
 PROJECT_NAME=$1
 shift
 
+BASEDIR=$(dirname "$0")
+export XC_ROOT=${XC_ROOT:="`realpath $BASEDIR/..`"}
+
 SRC_NAME=MyBelaCode # Name of the folder containing the source files
 PROJECTS_FOLDER=${XC_ROOT}/$SRC_NAME/projects
 LIBS_FOLDER=${XC_ROOT}/$SRC_NAME/libraries
@@ -23,9 +26,7 @@ else
   exit -1
 fi
 
-
-
-
+# OPTIONS
 SYNC_SAMPLES=0
 CLEAN=0
 CLEAN_REMOTE=0
@@ -41,12 +42,18 @@ ENABLE_STARTUP=1
 RUN_IN_LOOP=1
 IDE_RUN=-1
 IDE_STARTUP=-1
+ANY_MAKEFILE_OPTIONS=0
 while [ -n "$1" ]
 do
 	case $1 in
 		-c)
 			shift;
 			COMMAND_ARGS="$1";
+		;;
+		-m)
+			shift;
+			MAKEFILE_OPTIONS="$MAKEFILE_OPTIONS $1";
+			ANY_MAKEFILE_OPTIONS=1;
 		;;
 		-b)
 			RUN_MODE=screen;
@@ -125,9 +132,7 @@ do
 	shift
 done
 
-BASEDIR=$(dirname "$0")
 export XC_IP=${XC_IP:=192.168.6.2}
-export XC_ROOT=${XC_ROOT:="`realpath $BASEDIR/..`"}
 export XC_CL_OPTS=${XC_CL_OPTS:="-X 0"}
 export XC_USER=${XC_USER:=root}
 export XC_SSH=${XC_USER}@${XC_IP}
@@ -145,10 +150,10 @@ if [ $BUILD_PROJECT -eq 1 ]; then
 	echo "Building before synching...."
 	if [ $CLEAN -eq 2 ]; then
 		echo "Cleaning All...."
-		make cleanall
+		make -C ${XC_ROOT} cleanall
 	elif [ $CLEAN -eq 1 ]; then
 		echo "Cleaning Project $PROJECT_NAME...."
-		make clean PROJECT=$PROJECT_NAME
+		make -C ${XC_ROOT} clean PROJECT=$PROJECT_NAME
 	fi
 	shopt -s dotglob
 	find $LIBS_FOLDER/* -prune -type d | while IFS= read -r d; do 
@@ -157,7 +162,12 @@ if [ $BUILD_PROJECT -eq 1 ]; then
 	done
 	
 	echo "Building Project: $PROJECT_NAME...."
-	make -j8 PROJECT=$PROJECT_NAME
+	if [ $ANY_MAKEFILE_OPTIONS -eq 1 ]; then
+		make -C ${XC_ROOT} -j8 PROJECT=$PROJECT_NAME "$MAKEFILE_OPTIONS"
+	else
+		make -C ${XC_ROOT} -j8 PROJECT=$PROJECT_NAME
+	fi
+
 	echo "Build done..."
 fi
 
@@ -171,6 +181,14 @@ if [ $CONNECT -eq 1 ]; then
 else
 	exit 1
 fi
+
+# stop running process
+echo "Stop running process..."
+ssh $XC_SSH make QUIET=true --no-print-directory -C "~/Bela" stop
+
+# Clear the host if it is cached in ~/.ssh/known_hosts.
+echo "Clear the host if it is cached in ~/.ssh/known_hosts..."
+ssh-keygen -R $XC_IP &> /dev/null || true
 
 echo "Syncing time: $(date) to $XC_SSH...."
 ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 $XC_SSH "date -s \"`date '+%Y%m%d %T %z'`\" > /dev/null"

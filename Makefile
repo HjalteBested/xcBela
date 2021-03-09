@@ -16,25 +16,25 @@ DEPS := $(OBJS:.o=.d)    # substitutes ".o" with ".d"
 
 # application
 $(TARGET_EXEC): $(OBJS)
-	@$(CLANG) $(OPTS) $(LOPTS) $(OBJS) -o $@ $(LDFLAGS)
+	@$(CLANG) $(BELA_OPTS) $(BELA_LOPTS) $(OBJS) -o $@ $(BELA_LDFLAGS) $(LDFLAGS)
 	@echo Building: $(notdir $@)
 
 # assembly
 $(BUILD_DIR)/%.s.o: %.s
 	@$(MKDIR_P) $(dir $@)
-	@$(CLANG) $(OPTS) $(CPPFLAGS) -Wall -c -fmessage-length=0 -U_FORTIFY_SOURCE -MMD -MP -MF"$(@:%.o=%.d)" $< -o $@
+	@$(CLANG) $(BELA_OPTS) $(BELA_CPPFLAGS) $(CPPFLAGS) -Wall -c -fmessage-length=0 -U_FORTIFY_SOURCE -MMD -MP -MF"$(@:%.o=%.d)" $< -o $@
 	@echo Building: $(notdir $@)
 
 # c source
 $(BUILD_DIR)/%.c.o: %.c
 	@$(MKDIR_P) $(dir $@)
-	@$(CLANG) $(OPTS) $(CPPFLAGS) -Wall -c -fmessage-length=0 -U_FORTIFY_SOURCE -MMD -MP -MF"$(@:%.o=%.d)" $< -o $@
+	@$(CLANG) $(BELA_OPTS) $(BELA_CPPFLAGS) $(CPPFLAGS) -Wall -c -fmessage-length=0 -U_FORTIFY_SOURCE -MMD -MP -MF"$(@:%.o=%.d)" $< -o $@
 	@echo Building: $(notdir $@)
 
 # c++ source
 $(BUILD_DIR)/%.o: %.cpp
 	@$(MKDIR_P) $(dir $@)
-	@$(CLANG) $(OPTS) $(CPPFLAGS) -Wall -c -fmessage-length=0 -U_FORTIFY_SOURCE -MMD -MP -MF"$(@:%.o=%.d)" $< -o $@
+	@$(CLANG) $(BELA_OPTS) $(BELA_CPPFLAGS) -Wall -c -fmessage-length=0 -U_FORTIFY_SOURCE -MMD -MP -MF"$(@:%.o=%.d)" $< $(CPPFLAGS) -o $@
 	@echo Building: $(notdir $@)
 
 .PHONY: clean cleanall

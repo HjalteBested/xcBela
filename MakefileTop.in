@@ -3,7 +3,7 @@ CLANG=/usr/bin/clang++-10
 SYSROOT := ./sysroot
 
 #-Wextra
-CPPFLAGS=-O3 -fPIC \
+BELA_CPPFLAGS=-O3 -fPIC \
 	-DXENOMAI_SKIN_posix \
 	-march=armv7-a \
 	-mtune=cortex-a8 \
@@ -14,7 +14,7 @@ CPPFLAGS=-O3 -fPIC \
 	-I$(SYSROOT)/root/Bela/include \
 	-I$(SYSROOT)/usr/xenomai/include
 
-OPTS=--target=arm-linux-gnueabihf \
+BELA_OPTS=--target=arm-linux-gnueabihf \
 	--sysroot=$(SYSROOT) \
 	-isysroot $(SYSROOT) \
 	-isystem $(SYSROOT)/usr/include/c++/6.3.0 \
@@ -22,9 +22,9 @@ OPTS=--target=arm-linux-gnueabihf \
 	-B$(SYSROOT)/usr/lib/gcc/arm-linux-gnueabihf/6.3.0 \
 	--gcc-toolchain=TOOLCHAIN/arm-linux-gnueabihf-binutils \
 
-LOPTS=-L$(SYSROOT)/usr/lib/gcc/arm-linux-gnueabihf/6.3.0
+BELA_LOPTS=-L$(SYSROOT)/usr/lib/gcc/arm-linux-gnueabihf/6.3.0
 
-LDFLAGS=-Wl,--no-as-needed -L${SYSROOT}/usr/local/lib \
+BELA_LDFLAGS=-Wl,--no-as-needed -L${SYSROOT}/usr/local/lib \
     -L${SYSROOT}/usr/xenomai/lib \
     -L${SYSROOT}/root/Bela/lib \
     -lcobalt -lmodechk -lpthread -lrt\
